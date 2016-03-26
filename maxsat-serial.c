@@ -35,10 +35,10 @@ int main(int argc, char ** argv){
 		printf("%s",str);
 		sleep(2);
 		
-		while((sscanf(str,"%d",&num) == 1){
+		while((sscanf(str,"%d",&num) == 1)){
 			n++;
 		}
-		while((sscanf(str
+		/*while((sscanf(str*/
 		
 		
 	}
