@@ -8,7 +8,7 @@ int main(int argc, char ** argv){
 	char * fileNameIn;
 	FILE * fp;
 	char str[60];
-	int n_variables, n_clauses,nv,n;
+	int n_variables, n_clauses,n=0;
 	int i=0,j=0,num;
 	
 	
@@ -26,21 +26,33 @@ int main(int argc, char ** argv){
 		printf("Open error of input file.\n");
 		exit(2);
 	}
-	
-	fscanf(fp,"%d %d", &n_variables, &n_clauses);
-	printf("%d %d", n_variables, n_clauses);
+	fgets(str,60,fp);
+	sscanf(str,"%d %d", &n_variables, &n_clauses);
+	/*printf("%d %d\n", n_variables, n_clauses);*/
 	int mat[n_clauses][20];
-	
-	while(fgets(str,60,fp) != NULL){;	
-		printf("%s",str);
-		sleep(2);
-		
-		while((sscanf(str,"%d",&num) == 1)){
-			n++;
+	for(i=0;i<n_clauses;i++){
+		for(j=0;j<20;j++){
+			mat[i][j]=0;
 		}
-		/*while((sscanf(str*/
-		
-		
 	}
+	/*printf("Buff\n");*/
+	for(i = 0; i < n_clauses; i++){
+		fgets(str,60,fp);
+		/*printf("%s",str);*/
+		n=0,num=0;
+		while (sscanf(&(str[n]), "%d %n", &(mat[i][num]), &j) == 1) {
+			/*printf("%d\n",mat[i][num]);*/
+			n += j;
+			num++;			
+			/*sleep(1);*/
+		}
+	}
+	for(i=0;i<n_clauses;i++){
+		for(j=0;j<20;j++){
+			printf("%d ", mat[i][j]);
+		}
+		printf("\n");
+	}
+
 	exit(0);
 }
