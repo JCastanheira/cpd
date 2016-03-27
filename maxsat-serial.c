@@ -24,8 +24,9 @@ int compMax(const void* linha1, const void* linha2){
 }
 */
 
-void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars){
+void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current){
 	int i,j;
+	current[abs(node)-1]=node;
 	for(i=0;i<n_clauses;i++){
 		for(j=0;j<20;j++){
 			if(mat[i][j]==node){
@@ -58,7 +59,9 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	printf("mscount: %d\n",mscount);
 	if(mscount>(*maxsat)){
 		(*maxsat)=mscount;
-		/*set example of best*/
+		for(i=0;i<n_vars;i++){
+			best[i]=current[i];
+		}
 		(*maxsat_count)=0;
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
 		printf("maxsat_count: %d %d\n",(*maxsat_count),2^(n_vars-abs(node)));
@@ -76,14 +79,16 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	for(i=0;i<n_clauses;i++){
 		status_c[i]=status[i];
 	}
-	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars);
-	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars);
+	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current);
+	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current);
 }
 
 int main(int argc, char ** argv){
 	
 	char * fileNameIn;
+	char * fileNameOut;
 	FILE * fp;
+	char extOut[] = ".solng";/*mudar depois*/
 	char str[60];
 	int n_variables, n_clauses,n=0;
 	int i=0,j=0,num;
@@ -124,6 +129,7 @@ int main(int argc, char ** argv){
 			/*sleep(1);*/
 		}
 	}
+	fclose(fp);
 	for(i=0;i<n_clauses;i++){
 		for(j=0;j<20;j++){
 			printf("%d ", mat[i][j]);
@@ -142,11 +148,16 @@ int main(int argc, char ** argv){
 	}
 	printf("n_vars: %d\n",n_vars);
 	int maxsat=0, maxsat_count=0;
-	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars);
+	int best[n_vars],current[n_vars];
+	for(i=1;i<=n_vars;i++){
+		best[i-1]=-i;
+		current[i-1]=-i;
+	}
+	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0]);
 	for(i=0;i<n_clauses;i++){
 		status[i]=0;
 	}
-	searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars);
+	searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0]);
 	printf("%d %d\n",maxsat,maxsat_count);
 	/*qsort(mat,n_clauses,20*sizeof(int),compMax);
 	printf("Sorted:\n");
@@ -156,5 +167,37 @@ int main(int argc, char ** argv){
 		}
 		printf("\n");
 	}*/
+	printf("Best:\n");
+	for(i=0;i<n_vars;i++){
+		printf("%d ",best[i]);
+	}
+	printf("\n");
+	
+	fileNameIn[strlen(fileNameIn)-3] = '\0';
+	
+	fileNameOut = (char *) malloc(sizeof(char) * 
+                                 (strlen(fileNameIn) + 
+									  strlen(extOut) + 1));
+	if(fileNameOut == NULL){
+		printf("Memory allocation error for fileNameOut.\n");
+		exit(1);
+	}
+
+	strcpy(fileNameOut, fileNameIn);
+	strcat(fileNameOut, extOut);
+
+	fp = fopen(fileNameOut, "w");
+	if(fp == NULL){
+		printf("Open error of output file.\n");
+		exit(2);
+	}
+	
+	fprintf(fp,"%d %d\n",maxsat,maxsat_count);
+	for(i=0;i<n_vars;i++){
+		fprintf(fp,"%d ",best[i]);
+	}
+	fprintf(fp,"\n");
+	fclose(fp);
+	free(fileNameOut);
 	exit(0);
 }
