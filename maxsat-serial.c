@@ -3,6 +3,26 @@
 #include <string.h>
 #include <unistd.h>
 
+int maxVar(int* linha){
+	int j, max=0;
+	for(j=0;j<20;j++){
+		if(abs(linha[j])>max){
+			max=abs(linha[j]);
+		}
+	}
+	return max;
+}
+
+int compMax(const void* linha1, const void* linha2){
+	if(maxVar((int*)linha1)>maxVar((int*)linha2)){
+		return 1;
+	}
+	if(maxVar((int*)linha1)<maxVar((int*)linha2)){
+		return -1;
+	}
+	return 0;
+}
+
 int main(int argc, char ** argv){
 	
 	char * fileNameIn;
@@ -53,6 +73,17 @@ int main(int argc, char ** argv){
 		}
 		printf("\n");
 	}
-
+	/*int max, maxvec[n_clauses];*/
+	for(i=0;i<n_clauses;i++){
+		printf("%d\n",maxVar(mat[i]));
+	}
+	qsort(mat,n_clauses,20*sizeof(int),compMax);
+	printf("Sorted:\n");
+	for(i=0;i<n_clauses;i++){
+		for(j=0;j<20;j++){
+			printf("%d ", mat[i][j]);
+		}
+		printf("\n");
+	}
 	exit(0);
 }
