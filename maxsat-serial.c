@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <omp.h>
 
 int maxVar(int* linha){
 	int j, max=0;
@@ -28,7 +29,10 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	int i,j;
 	current[abs(node)-1]=node;
 	for(i=0;i<n_clauses;i++){
-		for(j=0;j<20;j++){
+		if(status[i]!=0){
+			continue;
+		}
+		for(j=0;mat[i][j]!=0;j++){
 			if(mat[i][j]==node){
 				status[i]=1;
 			}
@@ -51,12 +55,12 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 			mscount++;
 		}
 	}
-	printf("node: %d\n",node);
+	/*printf("node: %d\n",node);
 	for(i=0;i<n_clauses;i++){
 		printf("status: %d\n",status[i]);
 	}
 	printf("imp_clauses: %d\n",imp_clauses);
-	printf("mscount: %d\n",mscount);
+	printf("mscount: %d\n",mscount);*/
 	if(mscount>(*maxsat)){
 		(*maxsat)=mscount;
 		for(i=0;i<n_vars;i++){
@@ -64,12 +68,12 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		}
 		(*maxsat_count)=0;
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
-		printf("maxsat_count: %d %d\n",(*maxsat_count),2^(n_vars-abs(node)));
+		/*printf("maxsat_count: %d %d\n",(*maxsat_count),2^(n_vars-abs(node)));*/
 		return;
 	}
 	if(mscount==(*maxsat)){
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
-		printf("maxsat_count: %d\n",(*maxsat_count));
+		/*printf("maxsat_count: %d\n",(*maxsat_count));*/
 		return;
 	}
 	if(mscount<(*maxsat)&&mscount>=0){
@@ -84,13 +88,13 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 }
 
 int main(int argc, char ** argv){
-	
+	double start = omp_get_wtime();
 	char * fileNameIn;
 	char * fileNameOut;
 	FILE * fp;
 	char extOut[] = ".solng";/*mudar depois*/
 	char str[60];
-	int n_variables, n_clauses,n=0;
+	int n_vars, n_clauses,n=0;
 	int i=0,j=0,num;
 	
 	
@@ -100,7 +104,7 @@ int main(int argc, char ** argv){
 	}
 	
 	fileNameIn= argv[1];
-	printf("%s\n", fileNameIn);
+	/*printf("%s\n", fileNameIn);*/
 	
 	fp  = fopen(fileNameIn, "r");
 	
@@ -109,7 +113,7 @@ int main(int argc, char ** argv){
 		exit(2);
 	}
 	fgets(str,60,fp);
-	sscanf(str,"%d %d", &n_variables, &n_clauses);
+	sscanf(str,"%d %d", &n_vars, &n_clauses);
 	/*printf("%d %d\n", n_variables, n_clauses);*/
 	int mat[n_clauses][20];
 	for(i=0;i<n_clauses;i++){
@@ -130,23 +134,17 @@ int main(int argc, char ** argv){
 		}
 	}
 	fclose(fp);
-	for(i=0;i<n_clauses;i++){
+	/*for(i=0;i<n_clauses;i++){
 		for(j=0;j<20;j++){
 			printf("%d ", mat[i][j]);
 		}
 		printf("\n");
-	}
-	int maxvec[n_clauses],status[n_clauses];
-	int n_vars=0;
+	}*/
+	int status[n_clauses];
 	for(i=0;i<n_clauses;i++){
-		maxvec[i]=maxVar(mat[i]);
-		if(maxvec[i]>n_vars){
-			n_vars=maxvec[i];
-		}
 		status[i]=0;
-		printf("%d\n",maxvec[i]);
 	}
-	printf("n_vars: %d\n",n_vars);
+	/*printf("n_vars: %d\n",n_vars);*/
 	int maxsat=0, maxsat_count=0;
 	int best[n_vars],current[n_vars];
 	for(i=1;i<=n_vars;i++){
@@ -199,5 +197,7 @@ int main(int argc, char ** argv){
 	fprintf(fp,"\n");
 	fclose(fp);
 	free(fileNameOut);
+	double end = omp_get_wtime();
+	printf("Time: %f\n",end-start);
 	exit(0);
 }
