@@ -40,16 +40,13 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		}
 		for(j=0;mat[i][j]!=0;j++){
 			if(mat[i][j]==node){
-				#pragma omp critical
 				status[i]=1;
 			}
 		}
 		if(maxVar(mat[i])<=abs(node) && status[i]==0){
-			#pragma omp critical
-			{
 			status[i]=-1;
 			imp_clauses++;
-		}
+		
 		}
 	}
 	#pragma omp barrier
@@ -57,8 +54,10 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	for(i=0;i<n_clauses;i++){
 		printf("status: %d, node: %d\n",status[i],node);fflush(stdout);
 	}
-	
-	if((n_clauses-imp_clauses)<(*maxsat)){
+	int a;
+	#pragma omp critical
+	a=(*maxsat);
+	if((n_clauses-imp_clauses)<a){
 		return;
 	}
 	int mscount=0;
@@ -66,11 +65,10 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	/*#pragma omp for*/
 	for(i=0;i<n_clauses;i++){
 		if(status[i]==0){
-			#pragma omp critical
 			mscount=-1;
+			break;
 		}
-		if(status[i]==1 && mscount>=0){
-			#pragma omp critical
+		if(status[i]==1){
 			mscount++;
 		}
 	}
@@ -81,7 +79,9 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 	printf("imp_clauses: %d\n",imp_clauses);fflush(stdout);
 	printf("mscount: %d\n",mscount);fflush(stdout);
-	if(mscount>(*maxsat)){
+	#pragma omp critical
+	a=(*maxsat);
+	if(mscount>a){
 		#pragma omp critical
 		{
 		(*maxsat)=mscount;
@@ -95,7 +95,9 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 		return;
 	}
-	if(mscount==(*maxsat)){
+	#pragma omp critical
+	a=(*maxsat);
+	if(mscount==a){
 		#pragma omp critical
 		{
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
@@ -105,7 +107,9 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 		return;
 	}
-	if(mscount<(*maxsat)&&mscount>=0){
+	#pragma omp critical
+	a=(*maxsat);
+	if(mscount<a&&mscount>=0){
 		return;
 	}
 	/*#pragma omp barrier*/
