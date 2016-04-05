@@ -106,7 +106,7 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		return;
 	}
 	/*#pragma omp barrier*/
-	printf("Leggo %d\n", node);
+	printf("Leggo %d\n", node);fflush(stdout);
 	int status_c[n_clauses];
 	/*#pragma omp for*/
 	for(i=0;i<n_clauses;i++){
@@ -190,6 +190,8 @@ int main(int argc, char ** argv){
 	int best[n_vars],current[n_vars],current2[n_vars];
 	#pragma omp parallel
 {
+	int num_threads=omp_get_num_threads();
+	int tid = omp_get_thread_num();
 	#pragma omp for
 	for(i=0;i<n_clauses;i++){
 		status[i]=0;
@@ -203,7 +205,7 @@ int main(int argc, char ** argv){
 		current2[i-1]=-i;
 	}
 	current2[0]=1;
-	#pragma omp sections
+	#pragma omp parallel sections
 	{
 	#pragma omp section
 	{
