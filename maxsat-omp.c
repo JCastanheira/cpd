@@ -25,7 +25,7 @@ int compMax(const void* linha1, const void* linha2){
 }
 */
 
-void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current){
+void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current, int n_threads){
 	int i,j;
 	/*current[abs(node)-1]=node;*/
 	printf("-node: %d\n",node);fflush(stdout);
@@ -57,6 +57,7 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	for(i=0;i<n_clauses;i++){
 		printf("status: %d, node: %d\n",status[i],node);fflush(stdout);
 	}
+	
 	if((n_clauses-imp_clauses)<(*maxsat)){
 		return;
 	}
@@ -82,24 +83,26 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	printf("mscount: %d\n",mscount);fflush(stdout);
 	if(mscount>(*maxsat)){
 		#pragma omp critical
+		{
 		(*maxsat)=mscount;
 		/*#pragma omp for*/
 		for(i=0;i<n_vars;i++){
 			best[i]=current[i];
-		}
-		#pragma omp critical	
+		}	
 		(*maxsat_count)=(2^(n_vars-abs(node)))-1;
 		printf("maxsat: %d, node %d\n",(*maxsat),node);fflush(stdout);
 		printf("maxsat_count: %d %d, node %d\n",(*maxsat_count),2^(n_vars-abs(node)), node);fflush(stdout);
+	}
 		return;
 	}
 	if(mscount==(*maxsat)){
 		#pragma omp critical
 		{
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
-	}
+	
 		printf("BROKEN? %d\n", node);fflush(stdout);
 		printf("maxsat_count: %d\n",(*maxsat_count));fflush(stdout);
+	}
 		return;
 	}
 	if(mscount<(*maxsat)&&mscount>=0){
@@ -118,15 +121,17 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 	current[abs(node)]=-abs(node)-1;
 	current2[abs(node)]=abs(node)+1;
-	#pragma omp sections
+	#pragma omp parallel sections if((n_threads/((2^(abs(node)))+1))>1) num_threads(n_threads/((2^(abs(node)))+1))
 	{
 	#pragma omp section
 	{	
-	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current);
+	printf("SECTION 1-------------------, node %d\n",node);fflush(stdout);
+	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,n_threads);
 	}
 	#pragma omp section
 	{	
-	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current2);
+	printf("SECTION 2-------------------, node %d\n",node);fflush(stdout);
+	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current2,n_threads);
 	}
 	}
 	#pragma omp barrier
@@ -188,29 +193,33 @@ int main(int argc, char ** argv){
 	int status[n_clauses], status2[n_clauses];
 	int maxsat=0, maxsat_count=0;
 	int best[n_vars],current[n_vars],current2[n_vars];
-	#pragma omp parallel
+/*	#pragma omp parallel
 {
-	int num_threads=omp_get_num_threads();
-	int tid = omp_get_thread_num();
-	#pragma omp for
+	int n_threads=omp_get_num_threads();
+	#pragma omp single
+	printf("n_threads: %d\n",n_threads);
+	#pragma omp for*/
 	for(i=0;i<n_clauses;i++){
 		status[i]=0;
 		status2[i]=0;
 		/*printf("%d\n",maxvec[i]);*/
 	}
-	#pragma omp for
+	/*#pragma omp for*/
 	for(i=1;i<=n_vars;i++){
 		best[i-1]=-i;
 		current[i-1]=-i;
 		current2[i-1]=-i;
 	}
+	/*#pragma omp single*/
 	current2[0]=1;
-	#pragma omp parallel sections
+	#pragma omp parallel
+	{
+	#pragma omp sections
 	{
 	#pragma omp section
 	{
-		printf("Hi.1\n");
-	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,best,current);
+		printf("SECTION 1-------------------\n");
+	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,best,current,omp_get_num_threads());
 	}
 
 	/*for(i=0;i<n_clauses;i++){
@@ -218,11 +227,11 @@ int main(int argc, char ** argv){
 	}*/
 	#pragma omp section
 	{
-		printf("Hi.2\n");
-	searchTree(1,n_clauses,mat,status2,0,&maxsat,&maxsat_count,n_vars,best,current2);
+		printf("SECTION 2-------------------\n");
+	searchTree(1,n_clauses,mat,status2,0,&maxsat,&maxsat_count,n_vars,best,current2,omp_get_num_threads());
 	}
-	}
-	#pragma omp barrier
+}
+#pragma omp barrier
 }
 	printf("%d %d\n",maxsat,maxsat_count);
 	/*qsort(mat,n_clauses,20*sizeof(int),compMax);
