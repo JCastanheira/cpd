@@ -28,11 +28,11 @@ int compMax(const void* linha1, const void* linha2){
 void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current, int n_threads){
 	int i,j;
 	/*current[abs(node)-1]=node;*/
-	printf("-node: %d\n",node);fflush(stdout);
+	/*printf("-node: %d\n",node);fflush(stdout);
 	for(i=0;i<n_vars;i++){
 		printf("curr: %d ",current[i]);fflush(stdout);
 	}
-	printf("\n");
+	printf("\n");*/
 	/*#pragma omp for private(j)*/
 	for(i=0;i<n_clauses;i++){
 		if(status[i]!=0){
@@ -49,15 +49,16 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		
 		}
 	}
-	#pragma omp barrier
-	printf("help %d\n", node);fflush(stdout);
+	/*#pragma omp barrier*/
+	/*printf("help %d\n", node);fflush(stdout);
 	for(i=0;i<n_clauses;i++){
 		printf("status: %d, node: %d\n",status[i],node);fflush(stdout);
-	}
+	}*/
 	int a;
 	#pragma omp critical
 	a=(*maxsat);
 	if((n_clauses-imp_clauses)<a){
+		/*printf("HERE\n");*/
 		return;
 	}
 	int mscount=0;
@@ -73,12 +74,12 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		}
 	}
 
-	printf("node: %d\n",node);fflush(stdout);
+	/*printf("node: %d\n",node);fflush(stdout);
 	for(i=0;i<n_clauses;i++){
 		printf("2status: %d, node: %d\n",status[i],node);fflush(stdout);
 	}
 	printf("imp_clauses: %d\n",imp_clauses);fflush(stdout);
-	printf("mscount: %d\n",mscount);fflush(stdout);
+	printf("mscount: %d\n",mscount);fflush(stdout);*/
 	#pragma omp critical
 	a=(*maxsat);
 	if(mscount>a){
@@ -90,8 +91,8 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 			best[i]=current[i];
 		}	
 		(*maxsat_count)=(2^(n_vars-abs(node)))-1;
-		printf("maxsat: %d, node %d\n",(*maxsat),node);fflush(stdout);
-		printf("maxsat_count: %d %d, node %d\n",(*maxsat_count),2^(n_vars-abs(node)), node);fflush(stdout);
+		/*printf("maxsat: %d, node %d\n",(*maxsat),node);fflush(stdout);
+		printf("maxsat_count: %d %d, node %d\n",(*maxsat_count),2^(n_vars-abs(node)), node);fflush(stdout);*/
 	}
 		return;
 	}
@@ -102,8 +103,8 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		{
 		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
 	
-		printf("BROKEN? %d\n", node);fflush(stdout);
-		printf("maxsat_count: %d\n",(*maxsat_count));fflush(stdout);
+		/*printf("BROKEN? %d\n", node);fflush(stdout);
+		printf("maxsat_count: %d\n",(*maxsat_count));fflush(stdout);*/
 	}
 		return;
 	}
@@ -113,7 +114,7 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		return;
 	}
 	/*#pragma omp barrier*/
-	printf("Leggo %d\n", node);fflush(stdout);
+	/*printf("Leggo %d\n", node);fflush(stdout);*/
 	int status_c[n_clauses];
 	/*#pragma omp for*/
 	for(i=0;i<n_clauses;i++){
@@ -125,20 +126,26 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 	current[abs(node)]=-abs(node)-1;
 	current2[abs(node)]=abs(node)+1;
-	#pragma omp parallel sections if((n_threads/((2^(abs(node)))+1))>1) num_threads(n_threads/((2^(abs(node)))+1))
+	printf("BEFORE ------------------, node %d, tid: %d, nthreads: %d\n",node,omp_get_thread_num(),omp_get_num_threads());fflush(stdout);
+//	#pragma omp parallel	
+	//{
+	printf("BEFOREAFTER ------------------, node %d, tid: %d, nthreads: %d\n",node,omp_get_thread_num(),omp_get_num_threads());fflush(stdout);
+	#pragma omp parallel sections if((n_threads/((2^(abs(node)))-1))>1) num_threads(n_threads/((2^(abs(node)-1))+1))
+
 	{
 	#pragma omp section
 	{	
-	printf("SECTION 1-------------------, node %d\n",node);fflush(stdout);
+	printf("SECTION 1-------------------, node %d, tid; %d\n",node,omp_get_thread_num());fflush(stdout);
 	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,n_threads);
 	}
 	#pragma omp section
 	{	
-	printf("SECTION 2-------------------, node %d\n",node);fflush(stdout);
+	printf("SECTION 2-------------------, node %d, tid; %d\n",node,omp_get_thread_num());fflush(stdout);
 	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current2,n_threads);
 	}
-	}
-	#pragma omp barrier
+//	}
+}
+	/*#pragma omp barrier*/
 }
 
 int main(int argc, char ** argv){
@@ -218,11 +225,11 @@ int main(int argc, char ** argv){
 	current2[0]=1;
 	#pragma omp parallel
 	{
-	#pragma omp sections
+	#pragma omp sections nowait
 	{
 	#pragma omp section
 	{
-		printf("SECTION 1-------------------\n");
+		/*printf("SECTION 1-------------------\n");*/
 	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,best,current,omp_get_num_threads());
 	}
 
@@ -231,11 +238,11 @@ int main(int argc, char ** argv){
 	}*/
 	#pragma omp section
 	{
-		printf("SECTION 2-------------------\n");
+		/*printf("SECTION 2-------------------\n");*/
 	searchTree(1,n_clauses,mat,status2,0,&maxsat,&maxsat_count,n_vars,best,current2,omp_get_num_threads());
 	}
 }
-#pragma omp barrier
+/*#pragma omp barrier*/
 }
 	printf("%d %d\n",maxsat,maxsat_count);
 	/*qsort(mat,n_clauses,20*sizeof(int),compMax);
