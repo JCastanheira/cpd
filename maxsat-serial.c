@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <omp.h>
+#include <math.h>
 
 int maxVar(int* linha){
 	int j, max=0;
@@ -66,13 +67,12 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 		for(i=0;i<n_vars;i++){
 			best[i]=current[i];
 		}
-		(*maxsat_count)=0;
-		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
+		(*maxsat_count)=(int) pow(2.0,n_vars-abs(node));
 		/*printf("maxsat_count: %d %d\n",(*maxsat_count),2^(n_vars-abs(node)));*/
 		return;
 	}
 	if(mscount==(*maxsat)){
-		(*maxsat_count)+=(2^(n_vars-abs(node)))-1;
+		(*maxsat_count)+=(int) pow(2.0,n_vars-abs(node));
 		/*printf("maxsat_count: %d\n",(*maxsat_count));*/
 		return;
 	}
