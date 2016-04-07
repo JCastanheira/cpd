@@ -137,9 +137,9 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	//printf("bla %d %d %d\n",abs(node),(2^(abs(node))),n_threads/((2^(abs(node)))-1));fflush(stdout);
 	//#pragma omp critical
 	(*n_threads)++;
-	#pragma omp parallel if(((*n_threads)/((int) pow(2.0,abs(node))))>1) num_threads(2)
+	#pragma omp parallel if((*n_threads)>1) num_threads(2)
 	{
-
+//((*n_threads)/((int) pow(2.0,abs(node))))>1
 	//printf("SECTION 1-------------------, node %d, tid; %d\n",node,omp_get_thread_num());fflush(stdout);
 	#pragma omp single nowait
 	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,n_threads);
