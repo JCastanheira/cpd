@@ -124,12 +124,6 @@ int main(int argc, char ** argv){
 		status[i]=0;
 	}
 	searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0]);
-	printf("%d %d\n",maxsat,maxsat_count);
-	printf("Best:\n");
-	for(i=0;i<n_vars;i++){
-		printf("%d ",best[i]);
-	}
-	printf("\n");
 	
 	fileNameIn[strlen(fileNameIn)-3] = '\0';
 	

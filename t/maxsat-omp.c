@@ -163,12 +163,6 @@ int main(int argc, char ** argv){
 	#pragma omp single
 	searchTree(1,n_clauses,mat,status2,0,&maxsat,&maxsat_count,n_vars,best,current2,&n_threads);
 	}
-	printf("%d %d\n",maxsat,maxsat_count);
-	printf("Best:\n");
-	for(i=0;i<n_vars;i++){
-		printf("%d ",best[i]);
-	}
-	printf("\n");
 	
 	fileNameIn[strlen(fileNameIn)-3] = '\0';
 	
