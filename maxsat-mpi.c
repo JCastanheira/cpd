@@ -78,10 +78,10 @@ int main(int argc, char ** argv){
 	char str[60];
 	int n_vars, n_clauses,n=0;
 	int i=0,j=0,num;
-	MPI_Status status;
-    int id, p,
+	MPI_Status stat;
+    int id, p;
 	
-	MPI_Init (&argc, &argv);
+	MPI_Init(&argc, &argv);
 
     MPI_Comm_rank (MPI_COMM_WORLD, &id);
     MPI_Comm_size (MPI_COMM_WORLD, &p);
@@ -91,6 +91,8 @@ int main(int argc, char ** argv){
 		MPI_Finalize();
 		exit(1);
 	}
+	
+	int k=(int)log2((double)p);
 	
 	fileNameIn= argv[1];
 	
