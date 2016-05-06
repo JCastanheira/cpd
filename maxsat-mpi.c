@@ -6,6 +6,12 @@
 #include <mpi.h>
 #include <math.h>
 
+/* Compile using:
+ * mpicc -g -fopenmp maxsat-mpi.c -o maxsat-mpi -lm
+ * Run using:
+ * mpirun -np <num_procs> maxsat-mpi ex<n>.in
+ */
+
 int maxVar(int* linha){
 	int j, max=0;
 	for(j=0;j<20;j++){
@@ -127,6 +133,15 @@ int main(int argc, char ** argv){
 		}
 	}
 	fclose(fp);
+	if(id==1){
+		for(i=0;i<n_clauses;i++){
+			for(j=0;j<20;j++){
+				printf("%d ",mat[i][j]);fflush(stdout);
+			}
+			printf("id: %d\n", id);fflush(stdout);
+		}
+	}
+	
 	int status[n_clauses];
 	for(i=0;i<n_clauses;i++){
 		status[i]=0;
@@ -138,19 +153,60 @@ int main(int argc, char ** argv){
 		current[i-1]=-i;
 	}
 	if(id<p/2){
+		printf("Node %d in part 1\n",id);fflush(stdout);
 		searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2);
 	}else{
 		for(i=0;i<n_clauses;i++){
 			status[i]=0;
 		}
+		printf("Node %d in part 2\n",id);fflush(stdout);
 		searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2));
 	}
+	printf("Node %d ms %d count %d\n",id,maxsat,maxsat_count);fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
-	int ms;
+	int *ms, *mscount;
+	ms=(int*)malloc(p*sizeof(int));
+	mscount=(int*)malloc(p*sizeof(int));
 	/*MPI_Gather instead?*/
-	MPI_Reduce(&maxsat,&ms,1,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);/*use MPI_MAXLOC instead?*/
+	MPI_Gather(&maxsat, 1, MPI_INT, ms, 1, MPI_INT,0, MPI_COMM_WORLD);
+	MPI_Gather(&maxsat_count, 1, MPI_INT, mscount, 1, MPI_INT,0, MPI_COMM_WORLD);
+	/*MPI_Reduce(&maxsat,&ms,1,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);use MPI_MAXLOC instead?*/
 	
 	if(!id){
+		printf("ms: ");
+		for(i=0;i<p;i++){
+			printf("%d ",ms[i]);
+		}
+		printf("\nmscount: ");
+		for(i=0;i<p;i++){
+			printf("%d ",mscount[i]);
+		}
+		printf("\n");
+		
+		int hasmax[p];
+		for(i=0;i<p;i++){
+			if(ms[i]>maxsat){
+				maxsat=ms[i];
+				hasmax[i]=1;
+				for(j=0;j<i;j++){
+					hasmax[j]=0;
+				}
+			}
+			if(ms[i]==maxsat){
+				hasmax[i]=1;
+			}
+			if(ms[i]<maxsat){
+				hasmax[i]=0;
+			}
+		}
+		int finalcount=0;
+		for(i=0;i<p;i++){
+			if(hasmax[i]){
+				finalcount+=mscount[i];
+			}
+		}
+				
+		
 		fileNameIn[strlen(fileNameIn)-3] = '\0';
 		
 		fileNameOut = (char *) malloc(sizeof(char) * 
@@ -169,8 +225,8 @@ int main(int argc, char ** argv){
 			printf("Open error of output file.\n");
 			exit(2);
 		}
-		printf("%d %d\n",maxsat,maxsat_count);fflush(stdout);
-		fprintf(fp,"%d %d\n",maxsat,maxsat_count);
+		printf("%d %d\n",maxsat,finalcount);fflush(stdout);
+		fprintf(fp,"%d %d\n",maxsat,finalcount);
 		for(i=0;i<n_vars;i++){
 			printf("%d ",best[i]);fflush(stdout);
 			fprintf(fp,"%d ",best[i]);
@@ -182,7 +238,8 @@ int main(int argc, char ** argv){
 		double end = omp_get_wtime();
 		printf("Time: %f\n",end-start);
 	}
-
+	free(ms);
+	free(mscount);
 	MPI_Finalize();
 	exit(0);
 }
