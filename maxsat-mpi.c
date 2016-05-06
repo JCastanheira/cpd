@@ -16,7 +16,7 @@ int maxVar(int* linha){
 	return max;
 }
 
-void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current){
+void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current, int id, int idf, int p){
 	int i,j;
 	current[abs(node)-1]=node;
 	for(i=0;i<n_clauses;i++){
@@ -65,8 +65,16 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	for(i=0;i<n_clauses;i++){
 		status_c[i]=status[i];
 	}
-	searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current);
-	searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current);
+	if(p>1){
+		if(idf<p/2){
+			searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf,p/2);
+		}else{
+			searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf-(p/2),p-p/2);
+		}
+	}else{
+		searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1);
+		searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1);
+	}
 }
 
 int main(int argc, char ** argv){
@@ -74,7 +82,7 @@ int main(int argc, char ** argv){
 	char * fileNameIn;
 	char * fileNameOut;
 	FILE * fp;
-	char extOut[] = ".out";
+	char extOut[] = ".outg";
 	char str[60];
 	int n_vars, n_clauses,n=0;
 	int i=0,j=0,num;
@@ -92,7 +100,7 @@ int main(int argc, char ** argv){
 		exit(1);
 	}
 	
-	int k=(int)log2((double)p);
+	/*int k=(int)log2((double)p);*/
 	
 	fileNameIn= argv[1];
 	
@@ -129,42 +137,52 @@ int main(int argc, char ** argv){
 		best[i-1]=-i;
 		current[i-1]=-i;
 	}
-	searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0]);
-	for(i=0;i<n_clauses;i++){
-		status[i]=0;
+	if(id<p/2){
+		searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2);
+	}else{
+		for(i=0;i<n_clauses;i++){
+			status[i]=0;
+		}
+		searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2));
 	}
-	searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0]);
+	MPI_Barrier(MPI_COMM_WORLD);
+	int ms;
+	/*MPI_Gather instead?*/
+	MPI_Reduce(&maxsat,&ms,1,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);/*use MPI_MAXLOC instead?*/
 	
+	if(!id){
+		fileNameIn[strlen(fileNameIn)-3] = '\0';
+		
+		fileNameOut = (char *) malloc(sizeof(char) * 
+									 (strlen(fileNameIn) + 
+										  strlen(extOut) + 1));
+		if(fileNameOut == NULL){
+			printf("Memory allocation error for fileNameOut.\n");
+			exit(1);
+		}
+
+		strcpy(fileNameOut, fileNameIn);
+		strcat(fileNameOut, extOut);
+
+		fp = fopen(fileNameOut, "w");
+		if(fp == NULL){
+			printf("Open error of output file.\n");
+			exit(2);
+		}
+		printf("%d %d\n",maxsat,maxsat_count);fflush(stdout);
+		fprintf(fp,"%d %d\n",maxsat,maxsat_count);
+		for(i=0;i<n_vars;i++){
+			printf("%d ",best[i]);fflush(stdout);
+			fprintf(fp,"%d ",best[i]);
+		}
+		printf("\n");
+		fprintf(fp,"\n");
+		fclose(fp);
+		free(fileNameOut);
+		double end = omp_get_wtime();
+		printf("Time: %f\n",end-start);
+	}
+
 	MPI_Finalize();
-	
-	fileNameIn[strlen(fileNameIn)-3] = '\0';
-	
-	fileNameOut = (char *) malloc(sizeof(char) * 
-                                 (strlen(fileNameIn) + 
-									  strlen(extOut) + 1));
-	if(fileNameOut == NULL){
-		printf("Memory allocation error for fileNameOut.\n");
-		exit(1);
-	}
-
-	strcpy(fileNameOut, fileNameIn);
-	strcat(fileNameOut, extOut);
-
-	fp = fopen(fileNameOut, "w");
-	if(fp == NULL){
-		printf("Open error of output file.\n");
-		exit(2);
-	}
-	
-	fprintf(fp,"%d %d\n",maxsat,maxsat_count);
-	for(i=0;i<n_vars;i++){
-		fprintf(fp,"%d ",best[i]);
-	}
-	fprintf(fp,"\n");
-	fclose(fp);
-	free(fileNameOut);
-	double end = omp_get_wtime();
-	printf("Time: %f\n",end-start);
-
 	exit(0);
 }
