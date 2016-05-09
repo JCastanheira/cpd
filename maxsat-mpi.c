@@ -152,15 +152,31 @@ int main(int argc, char ** argv){
 		best[i-1]=-i;
 		current[i-1]=-i;
 	}
-	if(id<p/2){
-		printf("Node %d in part 1\n",id);fflush(stdout);
-		searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2);
-	}else{
-		for(i=0;i<n_clauses;i++){
-			status[i]=0;
+	int nodes=pow(2.0,n_vars-1);
+	if(nodes>=p){
+		if(id<p/2){
+			printf("Node %d in part 1\n",id);fflush(stdout);
+			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2);
+		}else{
+			for(i=0;i<n_clauses;i++){
+				status[i]=0;
+			}
+			printf("Node %d in part 2\n",id);fflush(stdout);
+			searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2));
 		}
-		printf("Node %d in part 2\n",id);fflush(stdout);
-		searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2));
+	}else{
+		if(id<nodes/2){
+			printf("Node %d in part 1\n",id);fflush(stdout);
+			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,nodes/2);
+		}else{
+			if(id<nodes){
+				for(i=0;i<n_clauses;i++){
+					status[i]=0;
+				}
+				printf("Node %d in part 2\n",id);fflush(stdout);
+				searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(nodes/2),nodes-(nodes/2));
+			}
+		}
 	}
 	printf("Node %d ms %d count %d\n",id,maxsat,maxsat_count);fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -172,6 +188,8 @@ int main(int argc, char ** argv){
 	MPI_Gather(&maxsat_count, 1, MPI_INT, mscount, 1, MPI_INT,0, MPI_COMM_WORLD);
 	/*MPI_Reduce(&maxsat,&ms,1,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);use MPI_MAXLOC instead?*/
 	
+	int hasbest=0;
+	int finalcount=0;
 	if(!id){
 		printf("ms: ");
 		for(i=0;i<p;i++){
@@ -188,6 +206,7 @@ int main(int argc, char ** argv){
 			if(ms[i]>maxsat){
 				maxsat=ms[i];
 				hasmax[i]=1;
+				hasbest=i;
 				for(j=0;j<i;j++){
 					hasmax[j]=0;
 				}
@@ -199,14 +218,20 @@ int main(int argc, char ** argv){
 				hasmax[i]=0;
 			}
 		}
-		int finalcount=0;
 		for(i=0;i<p;i++){
 			if(hasmax[i]){
 				finalcount+=mscount[i];
 			}
 		}
-				
-		
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Bcast(&hasbest,1,MPI_INT,0,MPI_COMM_WORLD);	
+	if(id==hasbest){
+		MPI_Send(best,n_vars,MPI_INT,0,0,MPI_COMM_WORLD);
+	}
+	
+	if(!id){
+		MPI_Recv(best,n_vars,MPI_INT,hasbest,0,MPI_COMM_WORLD,&stat);
 		fileNameIn[strlen(fileNameIn)-3] = '\0';
 		
 		fileNameOut = (char *) malloc(sizeof(char) * 
