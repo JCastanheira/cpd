@@ -6,7 +6,6 @@
 #include <mpi.h>
 #include <math.h>
 
-
 int maxVar(int* linha){
 	int j, max=0;
 	for(j=0;j<20;j++){
@@ -17,23 +16,8 @@ int maxVar(int* linha){
 	return max;
 }
 
-void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current, int id, int idf, int p, int pr, MPI_Request *reqr, int *newmax){
+void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_clauses, int *maxsat, int *maxsat_count, int n_vars, int* best, int* current, int id, int idf, int p){
 	int i,j;
-	int flag;
-	MPI_Status stat;
-	for(i=0;i<pr;i++){
-		flag=0;
-		if(id!=i){
-			MPI_Test(&reqr[i],&flag,&stat);
-		}
-		if(flag){
-			if(newmax[i]>(*maxsat)){
-				(*maxsat)=newmax[i];
-				(*maxsat_count)=0;
-			}
-		}
-	}
-	
 	current[abs(node)-1]=node;
 	for(i=0;i<n_clauses;i++){
 		if(status[i]!=0){
@@ -83,19 +67,19 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	}
 	if(p>1){
 		if(idf<p/2){
-			searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf,p/2,pr,&(*reqr),&(*newmax));
+			searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf,p/2);
 		}else{
-			searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf-(p/2),p-p/2,pr,&(*reqr),&(*newmax));
+			searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,idf-(p/2),p-p/2);
 		}
 	}else{
-		searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1,pr,&(*reqr),&(*newmax));
-		searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1,pr,&(*reqr),&(*newmax));
+		searchTree(-abs(node)-1,n_clauses,mat,status,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1);
+		searchTree(abs(node)+1,n_clauses,mat,status_c,imp_clauses,&(*maxsat),&(*maxsat_count),n_vars,best,current,id,0,1);
 	}
 }
 
 int main(int argc, char ** argv){
 	//Uncomment to show time
-	double start = omp_get_wtime();
+	//double start = omp_get_wtime();
 	char * fileNameIn;
 	FILE * fp;
 	char str[60];
@@ -152,44 +136,27 @@ int main(int argc, char ** argv){
 		current[i-1]=-i;
 	}
 	int nodes=pow(2.0,n_vars-1);
-	MPI_Request *reqr;
-	int *newmax;
-	reqr=(MPI_Request*)malloc(p*sizeof(MPI_Request));
-	newmax=(int*)malloc(p*sizeof(int));
-	for(i=0;i<p;i++){
-		newmax[i]=0;
-		if(i!=id){
-			MPI_Irecv(&newmax[i],1,MPI_INT,i,i,MPI_COMM_WORLD,&reqr[i]);
-		}
-	}
 	if(nodes>=p){
 		if(id<p/2){
-			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2,p,&reqr[0],&newmax[0]);
+			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2);
 		}else{
 			for(i=0;i<n_clauses;i++){
 				status[i]=0;
 			}
-			searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2),p,&reqr[0],&newmax[0]);
+			searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2));
 		}
 	}else{
 		if(id<nodes/2){
-			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,nodes/2,p,&reqr[0],&newmax[0]);
+			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,nodes/2);
 		}else{
 			if(id<nodes){
 				for(i=0;i<n_clauses;i++){
 					status[i]=0;
 				}
-				searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(nodes/2),nodes-(nodes/2),p,&reqr[0],&newmax[0]);
+				searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(nodes/2),nodes-(nodes/2));
 			}
 		}
 	}
-	MPI_Request req[p];
-	for(i=0;i<p;i++){
-		if(i!=id){
-			MPI_Isend(&maxsat,1,MPI_INT,i,id,MPI_COMM_WORLD,&req[i]);
-		}
-	}
-
 	MPI_Barrier(MPI_COMM_WORLD);
 	int *ms, *mscount;
 	ms=(int*)malloc(p*sizeof(int));
@@ -199,24 +166,19 @@ int main(int argc, char ** argv){
 	
 	int hasbest=0;
 	int finalcount=0;
-	if(!id){	
+	if(!id){		
 		int hasmax[p];
 		for(i=0;i<p;i++){
 			if(ms[i]>maxsat){
 				maxsat=ms[i];
 				hasmax[i]=1;
-				if(mscount[i]>0){
-					hasbest=i;
-				}
+				hasbest=i;
 				for(j=0;j<i;j++){
 					hasmax[j]=0;
 				}
 			}
 			if(ms[i]==maxsat){
 				hasmax[i]=1;
-				if(mscount[i]>0){
-					hasbest=i;
-				}
 			}
 			if(ms[i]<maxsat){
 				hasmax[i]=0;
@@ -236,18 +198,14 @@ int main(int argc, char ** argv){
 	
 	if(!id){
 		MPI_Recv(best,n_vars,MPI_INT,hasbest,0,MPI_COMM_WORLD,&stat);
-
 		printf("%d %d\n",maxsat,finalcount);fflush(stdout);
-
 		for(i=0;i<n_vars;i++){
 			printf("%d ",best[i]);fflush(stdout);
-
 		}
 		printf("\n");
-
 		//Uncomment to show time
-		double end = omp_get_wtime();
-		printf("Time: %f\n",end-start);
+		//double end = omp_get_wtime();
+		//printf("Time: %f\n",end-start);
 	}
 	free(ms);
 	free(mscount);
