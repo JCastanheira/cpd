@@ -6,11 +6,6 @@
 #include <mpi.h>
 #include <math.h>
 
-/* Compile using:
- * mpicc -g -fopenmp maxsat-mpi.c -o maxsat-mpi -lm
- * Run using:
- * mpirun -np <num_procs> maxsat-mpi ex<n>.in
- */
 
 int maxVar(int* linha){
 	int j, max=0;
@@ -27,18 +22,12 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 	int flag;
 	MPI_Status stat;
 	for(i=0;i<pr;i++){
-		//printf("id: %d, i: %d\n", id, i);fflush(stdout);
 		flag=0;
 		if(id!=i){
-			//printf("uh... id: %d, i: %d\n", id, i);fflush(stdout);
 			MPI_Test(&reqr[i],&flag,&stat);
 		}
 		if(flag){
-			//printf("dafuq2 id: %d, i: %d, newmax: %d\n", id, i, newmax[i]);fflush(stdout);
-
-			//printf("dafuq id: %d, i: %d\n", id, i);fflush(stdout);
 			if(newmax[i]>(*maxsat)){
-				//printf("dafuq id: %d, i: %d, newmax: %d\n", id, i, newmax[i]);fflush(stdout);
 				(*maxsat)=newmax[i];
 				(*maxsat_count)=0;
 			}
@@ -105,6 +94,7 @@ void searchTree(int node, int n_clauses, int mat[][20], int* status, int imp_cla
 }
 
 int main(int argc, char ** argv){
+	//Uncomment to show time
 	double start = omp_get_wtime();
 	char * fileNameIn;
 	FILE * fp;
@@ -124,8 +114,6 @@ int main(int argc, char ** argv){
 		MPI_Finalize();
 		exit(1);
 	}
-	
-	/*int k=(int)log2((double)p);*/
 	
 	fileNameIn= argv[1];
 	
@@ -152,14 +140,6 @@ int main(int argc, char ** argv){
 		}
 	}
 	fclose(fp);
-	/*if(id==1){
-		for(i=0;i<n_clauses;i++){
-			for(j=0;j<20;j++){
-				printf("%d ",mat[i][j]);fflush(stdout);
-			}
-			printf("id: %d\n", id);fflush(stdout);
-		}
-	}*/
 	
 	int status[n_clauses];
 	for(i=0;i<n_clauses;i++){
@@ -184,25 +164,21 @@ int main(int argc, char ** argv){
 	}
 	if(nodes>=p){
 		if(id<p/2){
-			printf("Node %d in part 1\n",id);fflush(stdout);
 			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,p/2,p,&reqr[0],&newmax[0]);
 		}else{
 			for(i=0;i<n_clauses;i++){
 				status[i]=0;
 			}
-			printf("Node %d in part 2\n",id);fflush(stdout);
 			searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(p/2),p-(p/2),p,&reqr[0],&newmax[0]);
 		}
 	}else{
 		if(id<nodes/2){
-			printf("Node %d in part 1\n",id);fflush(stdout);
 			searchTree(-1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id,nodes/2,p,&reqr[0],&newmax[0]);
 		}else{
 			if(id<nodes){
 				for(i=0;i<n_clauses;i++){
 					status[i]=0;
 				}
-				printf("Node %d in part 2\n",id);fflush(stdout);
 				searchTree(1,n_clauses,mat,status,0,&maxsat,&maxsat_count,n_vars,&best[0],&current[0],id,id-(nodes/2),nodes-(nodes/2),p,&reqr[0],&newmax[0]);
 			}
 		}
@@ -211,40 +187,25 @@ int main(int argc, char ** argv){
 	for(i=0;i<p;i++){
 		if(i!=id){
 			MPI_Isend(&maxsat,1,MPI_INT,i,id,MPI_COMM_WORLD,&req[i]);
-			//MPI_Cancel(&reqr[i]);
 		}
 	}
 
-	printf("Node %d ms %d count %d\n",id,maxsat,maxsat_count);fflush(stdout);
 	MPI_Barrier(MPI_COMM_WORLD);
 	int *ms, *mscount;
 	ms=(int*)malloc(p*sizeof(int));
 	mscount=(int*)malloc(p*sizeof(int));
-	/*MPI_Gather instead?*/
 	MPI_Gather(&maxsat, 1, MPI_INT, ms, 1, MPI_INT,0, MPI_COMM_WORLD);
 	MPI_Gather(&maxsat_count, 1, MPI_INT, mscount, 1, MPI_INT,0, MPI_COMM_WORLD);
-	/*MPI_Reduce(&maxsat,&ms,1,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);use MPI_MAXLOC instead?*/
 	
 	int hasbest=0;
 	int finalcount=0;
-	if(!id){
-		printf("ms: ");
-		for(i=0;i<p;i++){
-			printf("%d ",ms[i]);
-		}
-		printf("\nmscount: ");
-		for(i=0;i<p;i++){
-			printf("%d ",mscount[i]);
-		}
-		printf("\n");
-		
+	if(!id){	
 		int hasmax[p];
 		for(i=0;i<p;i++){
 			if(ms[i]>maxsat){
 				maxsat=ms[i];
 				hasmax[i]=1;
 				if(mscount[i]>0){
-					printf("%d wut\n",i);
 					hasbest=i;
 				}
 				for(j=0;j<i;j++){
@@ -254,7 +215,6 @@ int main(int argc, char ** argv){
 			if(ms[i]==maxsat){
 				hasmax[i]=1;
 				if(mscount[i]>0){
-					printf("%d wut2\n",i);
 					hasbest=i;
 				}
 			}
@@ -264,7 +224,6 @@ int main(int argc, char ** argv){
 		}
 		for(i=0;i<p;i++){
 			if(hasmax[i]){
-				printf("%d here, msc: %d\n",i,mscount[i]);
 				finalcount+=mscount[i];
 			}
 		}
@@ -286,6 +245,7 @@ int main(int argc, char ** argv){
 		}
 		printf("\n");
 
+		//Uncomment to show time
 		double end = omp_get_wtime();
 		printf("Time: %f\n",end-start);
 	}
