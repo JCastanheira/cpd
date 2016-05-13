@@ -105,6 +105,7 @@ int main(int argc, char ** argv){
 	
 	if(fp == NULL){
 		printf("Open error of input file.\n");
+		MPI_Finalize();
 		exit(2);
 	}
 	fgets(str,60,fp);
